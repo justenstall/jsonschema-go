@@ -7,13 +7,15 @@ package jsonschema
 import (
 	"strings"
 	"testing"
+
+	"github.com/justenstall/omap/omap"
 )
 
 func TestDereferenceJSONPointer(t *testing.T) {
 	s := &Schema{
 		AllOf: []*Schema{{}, {}},
 		Defs: map[string]*Schema{
-			"":  {Properties: map[string]*Schema{"": {}}},
+			"":  {Properties: omap.FromMap(map[string]*Schema{"": {}})},
 			"A": {},
 			"B": {
 				Defs: map[string]*Schema{
@@ -34,7 +36,7 @@ func TestDereferenceJSONPointer(t *testing.T) {
 		{"/$defs/A", s.Defs["A"]},
 		{"/$defs/B", s.Defs["B"]},
 		{"/$defs/B/$defs/X", s.Defs["B"].Defs["X"]},
-		{"/$defs//properties/", s.Defs[""].Properties[""]},
+		{"/$defs//properties/", s.Defs[""].Properties.Value("")},
 		{"/allOf/1", s.AllOf[1]},
 		{"/$defs/~1~0", s.Defs["/~"]},
 		{"/$defs/~01", s.Defs["~1"]},
@@ -53,7 +55,7 @@ func TestDereferenceJSONPointerDraft7(t *testing.T) {
 	s := &Schema{
 		AllOf: []*Schema{{}, {}},
 		Definitions: map[string]*Schema{
-			"":  {Properties: map[string]*Schema{"": {}}},
+			"":  {Properties: omap.FromMap(map[string]*Schema{"": {}})},
 			"A": {},
 			"B": {
 				Definitions: map[string]*Schema{
@@ -84,7 +86,7 @@ func TestDereferenceJSONPointerDraft7(t *testing.T) {
 		{"/definitions/A", s.Definitions["A"]},
 		{"/definitions/B", s.Definitions["B"]},
 		{"/definitions/B/definitions/X", s.Definitions["B"].Definitions["X"]},
-		{"/definitions//properties/", s.Definitions[""].Properties[""]},
+		{"/definitions//properties/", s.Definitions[""].Properties.Value("")},
 		{"/allOf/1", s.AllOf[1]},
 		{"/definitions/~1~0", s.Definitions["/~"]},
 		{"/definitions/~01", s.Definitions["~1"]},

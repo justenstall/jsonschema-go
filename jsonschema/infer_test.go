@@ -17,6 +17,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/jsonschema-go/jsonschema"
+	"github.com/justenstall/omap/omap"
 )
 
 type custom int
@@ -126,16 +127,15 @@ func TestFor(t *testing.T) {
 				}](ignore),
 				&schema{
 					Type: "object",
-					Properties: map[string]*schema{
-						"f":      {Type: "integer", Description: "fdesc"},
-						"G":      {Types: []string{"null", "array"}, Items: &schema{Type: "number"}},
-						"P":      {Types: []string{"null", "boolean"}, Description: "pdesc"},
-						"PT":     {Types: []string{"null", "string"}},
-						"NoSkip": {Type: "string"},
-					},
+					Properties: omap.New([]omap.Entry[string, *schema]{
+						{Key: "f", Value: &schema{Type: "integer", Description: "fdesc"}},
+						{Key: "G", Value: &schema{Types: []string{"null", "array"}, Items: &schema{Type: "number"}}},
+						{Key: "P", Value: &schema{Types: []string{"null", "boolean"}, Description: "pdesc"}},
+						{Key: "PT", Value: &schema{Types: []string{"null", "string"}}},
+						{Key: "NoSkip", Value: &schema{Type: "string"}},
+					}...),
 					Required:             []string{"f", "G", "P", "PT"},
 					AdditionalProperties: falseSchema(),
-					PropertyOrder:        []string{"f", "G", "P", "PT", "NoSkip"},
 				},
 			},
 			{
@@ -143,13 +143,12 @@ func TestFor(t *testing.T) {
 				forType[struct{ X, Y int }](ignore),
 				&schema{
 					Type: "object",
-					Properties: map[string]*schema{
-						"X": {Type: "integer"},
-						"Y": {Type: "integer"},
-					},
+					Properties: omap.New([]omap.Entry[string, *schema]{
+						{Key: "X", Value: &schema{Type: "integer"}},
+						{Key: "Y", Value: &schema{Type: "integer"}},
+					}...),
 					Required:             []string{"X", "Y"},
 					AdditionalProperties: falseSchema(),
-					PropertyOrder:        []string{"X", "Y"},
 				},
 			},
 			{
@@ -160,24 +159,22 @@ func TestFor(t *testing.T) {
 				}](ignore),
 				&schema{
 					Type: "object",
-					Properties: map[string]*schema{
+					Properties: omap.FromMap(map[string]*schema{
 						"A": {
 							Type: "object",
-							Properties: map[string]*schema{
+							Properties: omap.FromMap(map[string]*schema{
 								"B": {Type: "integer", Description: "bdesc"},
-							},
+							}),
 							Required:             []string{"B"},
 							AdditionalProperties: falseSchema(),
-							PropertyOrder:        []string{"B"},
 						},
 						"B": {
 							Type:        "integer",
 							Description: "bdesc",
 						},
-					},
+					}),
 					Required:             []string{"A", "B"},
 					AdditionalProperties: falseSchema(),
-					PropertyOrder:        []string{"A", "B"},
 				},
 			},
 		}
@@ -207,12 +204,12 @@ func TestFor(t *testing.T) {
 		}](true),
 		&schema{
 			Type: "object",
-			Properties: map[string]*schema{
+			Properties: omap.FromMap(map[string]*schema{
 				"A": {Type: "integer"},
-			},
+			}),
 			Required:             []string{"A"},
 			AdditionalProperties: falseSchema(),
-			PropertyOrder:        []string{"A"},
+			// PropertyOrder:        []string{"A"},
 		},
 	})
 	t.Run("lax", func(t *testing.T) {
@@ -254,10 +251,10 @@ func TestForType(t *testing.T) {
 			reflect.TypeFor[custom](): {Type: "custom"},
 			reflect.TypeFor[E](): {
 				Type: "object",
-				Properties: map[string]*schema{
+				Properties: omap.FromMap(map[string]*schema{
 					"G": {Type: "integer"},
 					"B": {Type: "integer"},
-				},
+				}),
 			},
 			reflect.TypeFor[M1](): {Types: []string{"custom1", "custom2"}},
 			reflect.TypeFor[M2](): {Types: []string{"null", "custom3", "custom4"}},
@@ -269,7 +266,7 @@ func TestForType(t *testing.T) {
 	}
 	want := &schema{
 		Type: "object",
-		Properties: map[string]*schema{
+		Properties: omap.FromMap(map[string]*schema{
 			"I":   {Type: "integer"},
 			"C":   {Type: "custom"},
 			"P":   {Types: []string{"null", "custom"}},
@@ -280,10 +277,10 @@ func TestForType(t *testing.T) {
 			"PM1": {Types: []string{"null", "custom1", "custom2"}},
 			"M2":  {Types: []string{"null", "custom3", "custom4"}},
 			"PM2": {Types: []string{"null", "custom3", "custom4"}},
-		},
+		}),
 		Required:             []string{"I", "C", "P", "PP", "B", "M1", "PM1", "M2", "PM2"},
 		AdditionalProperties: falseSchema(),
-		PropertyOrder:        []string{"I", "C", "P", "PP", "G", "B", "M1", "PM1", "M2", "PM2"},
+		// PropertyOrder:        []string{"I", "C", "P", "PP", "G", "B", "M1", "PM1", "M2", "PM2"},
 	}
 	if diff := cmp.Diff(want, got, cmpopts.IgnoreUnexported(schema{})); diff != "" {
 		t.Fatalf("ForType mismatch (-want +got):\n%s", diff)
@@ -324,10 +321,10 @@ func TestForTypeWithDifferentOrder(t *testing.T) {
 			reflect.TypeFor[custom](): {Type: "custom"},
 			reflect.TypeFor[E](): {
 				Type: "object",
-				Properties: map[string]*schema{
+				Properties: omap.FromMap(map[string]*schema{
 					"G": {Type: "integer"},
 					"B": {Type: "integer"},
-				},
+				}),
 			},
 		},
 	}
@@ -337,15 +334,15 @@ func TestForTypeWithDifferentOrder(t *testing.T) {
 	}
 	want := &schema{
 		Type: "object",
-		Properties: map[string]*schema{
+		Properties: omap.FromMap(map[string]*schema{
 			"I": {Type: "integer"},
 			"C": {Type: "custom"},
 			"G": {Type: "integer"},
 			"B": {Type: "boolean"},
-		},
+		}),
 		Required:             []string{"I", "C", "B"},
 		AdditionalProperties: falseSchema(),
-		PropertyOrder:        []string{"I", "C", "B", "G"},
+		// PropertyOrder:        []string{"I", "C", "B", "G"},
 	}
 	if diff := cmp.Diff(want, got, cmpopts.IgnoreUnexported(schema{})); diff != "" {
 		t.Fatalf("ForType mismatch (-want +got):\n%s", diff)
@@ -404,15 +401,15 @@ func TestForTypeWithEmbeddedStruct(t *testing.T) {
 			},
 			want: &schema{
 				Type: "object",
-				Properties: map[string]*schema{
+				Properties: omap.FromMap(map[string]*schema{
 					"C": {Type: "custom"},
 					"G": {Type: "number"},
 					"B": {Type: "integer"},
 					"I": {Type: "integer"},
-				},
+				}),
 				Required:             []string{"C", "G", "B", "I"},
 				AdditionalProperties: falseSchema(),
-				PropertyOrder:        []string{"C", "G", "B", "I"},
+				// PropertyOrder:        []string{"C", "G", "B", "I"},
 			},
 			wantStr: `{"type":"object","properties":{"C":{"type":"custom"},"G":{"type":"number"},"B":{"type":"integer"},"I":{"type":"integer"}},"required":["C","G","B","I"],"additionalProperties":false}`,
 		},
@@ -425,25 +422,25 @@ func TestForTypeWithEmbeddedStruct(t *testing.T) {
 					reflect.TypeFor[custom](): {Type: "custom"},
 					reflect.TypeFor[E](): {
 						Type: "object",
-						Properties: map[string]*schema{
+						Properties: omap.FromMap(map[string]*schema{
 							"G": {Type: "integer"},
 							"B": {Type: "integer"},
 							"I": {Type: "integer"},
-						},
+						}),
 					},
 				},
 			},
 			want: &schema{
 				Type: "object",
-				Properties: map[string]*schema{
+				Properties: omap.FromMap(map[string]*schema{
 					"C": {Type: "custom"},
 					"G": {Type: "integer"},
 					"B": {Type: "integer"},
 					"I": {Type: "integer"},
-				},
+				}),
 				Required:             []string{"C"},
 				AdditionalProperties: falseSchema(),
-				PropertyOrder:        []string{"C", "B", "G", "I"},
+				// PropertyOrder:        []string{"C", "B", "G", "I"},
 			},
 			wantStr: `{"type":"object","properties":{"C":{"type":"custom"},"B":{"type":"integer"},"G":{"type":"integer"},"I":{"type":"integer"}},"required":["C"],"additionalProperties":false}`,
 		},
@@ -458,16 +455,16 @@ func TestForTypeWithEmbeddedStruct(t *testing.T) {
 			},
 			want: &schema{
 				Type: "object",
-				Properties: map[string]*schema{
+				Properties: omap.FromMap(map[string]*schema{
 					"C": {Type: "custom"},
 					"G": {Type: "number"},
 					"B": {Type: "integer"},
 					"I": {Type: "integer"},
 					"M": {Type: "integer"},
-				},
+				}),
 				Required:             []string{"C", "G", "B", "I", "M"},
 				AdditionalProperties: falseSchema(),
-				PropertyOrder:        []string{"C", "G", "B", "I", "M"},
+				// PropertyOrder:        []string{"C", "G", "B", "I", "M"},
 			},
 			wantStr: `{"type":"object","properties":{"C":{"type":"custom"},"G":{"type":"number"},"B":{"type":"integer"},"I":{"type":"integer"},"M":{"type":"integer"}},"required":["C","G","B","I","M"],"additionalProperties":false}`,
 		},
@@ -480,26 +477,26 @@ func TestForTypeWithEmbeddedStruct(t *testing.T) {
 					reflect.TypeFor[custom](): {Type: "custom"},
 					reflect.TypeFor[E](): {
 						Type: "object",
-						Properties: map[string]*schema{
+						Properties: omap.FromMap(map[string]*schema{
 							"G": {Type: "integer"},
 							"B": {Type: "integer"},
 							"I": {Type: "integer"},
-						},
+						}),
 					},
 				},
 			},
 			want: &schema{
 				Type: "object",
-				Properties: map[string]*schema{
+				Properties: omap.FromMap(map[string]*schema{
 					"C": {Type: "custom"},
 					"G": {Type: "integer"},
 					"B": {Type: "integer"},
 					"I": {Type: "integer"},
 					"M": {Type: "integer"},
-				},
+				}),
 				Required:             []string{"C", "M"},
 				AdditionalProperties: falseSchema(),
-				PropertyOrder:        []string{"C", "B", "G", "I", "M"},
+				// PropertyOrder:        []string{"C", "B", "G", "I", "M"},
 			},
 			wantStr: `{"type":"object","properties":{"C":{"type":"custom"},"B":{"type":"integer"},"G":{"type":"integer"},"I":{"type":"integer"},"M":{"type":"integer"}},"required":["C","M"],"additionalProperties":false}`,
 		},
@@ -639,32 +636,32 @@ func TestForWithMutation(t *testing.T) {
 		t.Fatalf("For: %v", err)
 	}
 	s.Required[0] = "mutated"
-	s.Properties["A"].Type = "mutated"
-	s.Properties["C"].Items.Type = "mutated"
-	s.Properties["D"].MaxItems = jsonschema.Ptr(10)
-	s.Properties["D"].MinItems = jsonschema.Ptr(10)
-	s.Properties["E"].Types[0] = "mutated"
+	s.Properties.Value("A").Type = "mutated"
+	s.Properties.Value("C").Items.Type = "mutated"
+	s.Properties.Value("D").MaxItems = jsonschema.Ptr(10)
+	s.Properties.Value("D").MinItems = jsonschema.Ptr(10)
+	s.Properties.Value("E").Types[0] = "mutated"
 
 	s2, err := jsonschema.For[T](nil)
 	if err != nil {
 		t.Fatalf("For: %v", err)
 	}
-	if s2.Properties["A"].Type == "mutated" {
+	if s2.Properties.Value("A").Type == "mutated" {
 		t.Fatalf("ForWithMutation: expected A.Type to not be mutated")
 	}
-	if s2.Properties["B"].AdditionalProperties.Type == "mutated" {
+	if s2.Properties.Value("B").AdditionalProperties.Type == "mutated" {
 		t.Fatalf("ForWithMutation: expected B.AdditionalProperties.Type to not be mutated")
 	}
-	if s2.Properties["C"].Items.Type == "mutated" {
+	if s2.Properties.Value("C").Items.Type == "mutated" {
 		t.Fatalf("ForWithMutation: expected C.Items.Type to not be mutated")
 	}
-	if *s2.Properties["D"].MaxItems == 10 {
+	if *s2.Properties.Value("D").MaxItems == 10 {
 		t.Fatalf("ForWithMutation: expected D.MaxItems to not be mutated")
 	}
-	if *s2.Properties["D"].MinItems == 10 {
+	if *s2.Properties.Value("D").MinItems == 10 {
 		t.Fatalf("ForWithMutation: expected D.MinItems to not be mutated")
 	}
-	if s2.Properties["E"].Types[0] == "mutated" {
+	if s2.Properties.Value("E").Types[0] == "mutated" {
 		t.Fatalf("ForWithMutation: expected E.Types[0] to not be mutated")
 	}
 	if s2.Required[0] == "mutated" {
@@ -725,13 +722,13 @@ func TestDupSchema(t *testing.T) {
 	}
 
 	s := forType[args](false)
-	if g, w := s.Properties["S"].Description, "str"; g != w {
+	if g, w := s.Properties.Value("S").Description, "str"; g != w {
 		t.Errorf("S: got %q, want %q", g, w)
 	}
-	if g, w := s.Properties["A"].Description, "arr"; g != w {
+	if g, w := s.Properties.Value("A").Description, "arr"; g != w {
 		t.Errorf("A: got %q, want %q", g, w)
 	}
-	if g, w := s.Properties["A"].Items.Description, ""; g != w {
+	if g, w := s.Properties.Value("A").Items.Description, ""; g != w {
 		t.Errorf("A.items: got %q, want %q", g, w)
 	}
 }

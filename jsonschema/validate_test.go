@@ -16,6 +16,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/justenstall/omap/omap"
 )
 
 // The test for validation uses the official test suite, expressed as a set of JSON files.
@@ -122,10 +123,10 @@ func TestValidateErrors(t *testing.T) {
 
 func TestValidateDefaults(t *testing.T) {
 	s := &Schema{
-		Properties: map[string]*Schema{
+		Properties: omap.FromMap(map[string]*Schema{
 			"a": {Type: "integer", Default: mustMarshal(1)},
 			"b": {Type: "string", Default: mustMarshal("s")},
-		},
+		}),
 		Default: mustMarshal(map[string]any{"a": 1, "b": "two"}),
 	}
 	if _, err := s.Resolve(&ResolveOptions{ValidateDefaults: true}); err != nil {
@@ -133,10 +134,10 @@ func TestValidateDefaults(t *testing.T) {
 	}
 
 	s = &Schema{
-		Properties: map[string]*Schema{
+		Properties: omap.FromMap(map[string]*Schema{
 			"a": {Type: "integer", Default: mustMarshal(3)},
 			"b": {Type: "string", Default: mustMarshal("s")},
-		},
+		}),
 		Default: mustMarshal(map[string]any{"a": 1, "b": 2}),
 	}
 	_, err := s.Resolve(&ResolveOptions{ValidateDefaults: true})
@@ -148,11 +149,11 @@ func TestValidateDefaults(t *testing.T) {
 
 func TestApplyDefaults(t *testing.T) {
 	schema := &Schema{
-		Properties: map[string]*Schema{
+		Properties: omap.FromMap(map[string]*Schema{
 			"A": {Default: mustMarshal(1)},
 			"B": {Default: mustMarshal(2)},
 			"C": {Default: mustMarshal(3)},
-		},
+		}),
 		Required: []string{"C"},
 	}
 	rs, err := schema.Resolve(&ResolveOptions{ValidateDefaults: true})
@@ -186,27 +187,27 @@ func TestApplyDefaults(t *testing.T) {
 func TestApplyNestedDefaults(t *testing.T) {
 	base := &Schema{
 		Type: "object",
-		Properties: map[string]*Schema{
+		Properties: omap.FromMap(map[string]*Schema{
 			"A": {
 				Type: "object",
-				Properties: map[string]*Schema{
+				Properties: omap.FromMap(map[string]*Schema{
 					"B": {Type: "string", Default: mustMarshal("foo")},
-				},
+				}),
 			},
-		},
+		}),
 	}
 	// Variant where parent A has its own default object; recursion should still fill B.
 	withParentDefault := &Schema{
 		Type: "object",
-		Properties: map[string]*Schema{
+		Properties: omap.FromMap(map[string]*Schema{
 			"A": {
 				Type:    "object",
 				Default: mustMarshal(map[string]any{"X": 1}),
-				Properties: map[string]*Schema{
+				Properties: omap.FromMap(map[string]*Schema{
 					"B": {Type: "string", Default: mustMarshal("foo")},
-				},
+				}),
 			},
-		},
+		}),
 	}
 
 	for _, tc := range []struct {
@@ -305,11 +306,11 @@ func TestStructInstance(t *testing.T) {
 			false,
 		},
 		{
-			Schema{Properties: map[string]*Schema{"b": {Type: "boolean"}}},
+			Schema{Properties: omap.FromMap(map[string]*Schema{"b": {Type: "boolean"}})},
 			true,
 		},
 		{
-			Schema{Properties: map[string]*Schema{"b": {Type: "number"}}},
+			Schema{Properties: omap.FromMap(map[string]*Schema{"b": {Type: "number"}})},
 			false,
 		},
 		{
@@ -321,11 +322,11 @@ func TestStructInstance(t *testing.T) {
 			true, // P interpreted as present
 		},
 		{
-			Schema{Required: []string{"I", "P"}, Properties: map[string]*Schema{"P": {Type: "number"}}},
+			Schema{Required: []string{"I", "P"}, Properties: omap.FromMap(map[string]*Schema{"P": {Type: "number"}})},
 			false, // P interpreted as present, but not a number
 		},
 		{
-			Schema{Required: []string{"I"}, Properties: map[string]*Schema{"P": {Type: "number"}}},
+			Schema{Required: []string{"I"}, Properties: omap.FromMap(map[string]*Schema{"P": {Type: "number"}})},
 			true, // P not required, so interpreted as absent
 		},
 		{
@@ -421,14 +422,13 @@ func TestStructEmbedding(t *testing.T) {
 				Types: []string{"null", "array"},
 				Items: &Schema{
 					Type: "object",
-					Properties: map[string]*Schema{
-						"id":    {Type: "string"},
-						"name":  {Type: "string"},
-						"extra": {Type: "string"},
-					},
+					Properties: omap.New([]omap.Entry[string, *Schema]{
+						{Key: "id", Value: &Schema{Type: "string"}},
+						{Key: "name", Value: &Schema{Type: "string"}},
+						{Key: "extra", Value: &Schema{Type: "string"}},
+					}...),
 					Required:             []string{"id", "name", "extra"},
 					AdditionalProperties: falseSchema(),
-					PropertyOrder:        []string{"id", "name", "extra"},
 				},
 			},
 			validInstance: []Banana{
@@ -445,14 +445,13 @@ func TestStructEmbedding(t *testing.T) {
 				MaxItems: Ptr(2),
 				Items: &Schema{
 					Type: "object",
-					Properties: map[string]*Schema{
-						"id":    {Type: "string"},
-						"name":  {Type: "string"},
-						"extra": {Type: "string"},
-					},
+					Properties: omap.New([]omap.Entry[string, *Schema]{
+						{Key: "id", Value: &Schema{Type: "string"}},
+						{Key: "name", Value: &Schema{Type: "string"}},
+						{Key: "extra", Value: &Schema{Type: "string"}},
+					}...),
 					Required:             []string{"id", "name", "extra"},
 					AdditionalProperties: falseSchema(),
-					PropertyOrder:        []string{"id", "name", "extra"},
 				},
 			},
 			validInstance: [2]Banana{
@@ -467,14 +466,13 @@ func TestStructEmbedding(t *testing.T) {
 				Types: []string{"null", "array"},
 				Items: &Schema{
 					Type: "object",
-					Properties: map[string]*Schema{
-						"id":    {Type: "string"},
-						"name":  {Type: "string"},
-						"extra": {Type: "string"},
-					},
+					Properties: omap.New([]omap.Entry[string, *Schema]{
+						{Key: "id", Value: &Schema{Type: "string"}},
+						{Key: "name", Value: &Schema{Type: "string"}},
+						{Key: "extra", Value: &Schema{Type: "string"}},
+					}...),
 					Required:             []string{"id", "name", "extra"},
 					AdditionalProperties: falseSchema(),
-					PropertyOrder:        []string{"id", "name", "extra"},
 				},
 			},
 			validInstance: []Durian{
@@ -489,14 +487,13 @@ func TestStructEmbedding(t *testing.T) {
 				Types: []string{"null", "array"},
 				Items: &Schema{
 					Type: "object",
-					Properties: map[string]*Schema{
-						"id":    {Type: "string"},
-						"name":  {Type: "string"},
-						"extra": {Type: "string"},
-					},
+					Properties: omap.New([]omap.Entry[string, *Schema]{
+						{Key: "id", Value: &Schema{Type: "string"}},
+						{Key: "name", Value: &Schema{Type: "string"}},
+						{Key: "extra", Value: &Schema{Type: "string"}},
+					}...),
 					Required:             []string{"id", "name", "extra"},
 					AdditionalProperties: falseSchema(),
-					PropertyOrder:        []string{"id", "name", "extra"},
 				},
 			},
 			validInstance: []Fig{
@@ -511,14 +508,13 @@ func TestStructEmbedding(t *testing.T) {
 				Types: []string{"null", "array"},
 				Items: &Schema{
 					Type: "object",
-					Properties: map[string]*Schema{
-						"id":    {Type: "string"},
-						"name":  {Type: "string"},
-						"extra": {Type: "string"},
-					},
+					Properties: omap.New([]omap.Entry[string, *Schema]{
+						{Key: "id", Value: &Schema{Type: "string"}},
+						{Key: "name", Value: &Schema{Type: "string"}},
+						{Key: "extra", Value: &Schema{Type: "string"}},
+					}...),
 					Required:             []string{"id", "name", "extra"},
 					AdditionalProperties: falseSchema(),
-					PropertyOrder:        []string{"id", "name", "extra"},
 				},
 			},
 			validInstance: []Honeyberry{
@@ -531,15 +527,14 @@ func TestStructEmbedding(t *testing.T) {
 			targetType: reflect.TypeOf(Outer{}),
 			wantSchema: &Schema{
 				Type: "object",
-				Properties: map[string]*Schema{
+				Properties: omap.New([]omap.Entry[string, *Schema]{
 					// The "integer" from the Outer struct takes precedence.
-					"conflict_field": {Type: "integer"},
+					{Key: "conflict_field", Value: &Schema{Type: "integer"}},
 					// The non-conflicting field from the Inner struct is still present.
-					"inner_only": {Type: "string"},
-				},
+					{Key: "inner_only", Value: &Schema{Type: "string"}},
+				}...),
 				Required:             []string{"inner_only", "conflict_field"},
 				AdditionalProperties: falseSchema(),
-				PropertyOrder:        []string{"inner_only", "conflict_field"},
 			},
 			validInstance: Outer{Inner: &Inner{InnerOnly: "data"}, Conflict: 123},
 		},

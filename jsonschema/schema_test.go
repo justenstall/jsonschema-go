@@ -16,6 +16,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/justenstall/omap/omap"
 )
 
 func TestMarshalJSONConsistency(t *testing.T) {
@@ -26,10 +27,10 @@ func TestMarshalJSONConsistency(t *testing.T) {
 	testSchema := Schema{
 		Type:      "object",
 		MinLength: Ptr(10),
-		Properties: map[string]*Schema{
+		Properties: omap.FromMap(map[string]*Schema{
 			"name": {Type: "string"},
 			"age":  {Type: "integer"},
-		},
+		}),
 		Required: []string{"name"},
 	}
 
@@ -165,7 +166,7 @@ func TestMarshalJSONConsistency(t *testing.T) {
 
 	t.Run("EmptyPropertiesMap", func(t *testing.T) {
 		// Test that an empty map in Properties marshals as "{}".
-		s := &Schema{Type: "object", Properties: map[string]*Schema{}}
+		s := &Schema{Type: "object", Properties: omap.FromMap(map[string]*Schema{})}
 		got, err := json.Marshal(s)
 		if err != nil {
 			t.Fatalf("Failed to marshal interface value: %v", err)
@@ -329,15 +330,15 @@ func TestMarshalOrder(t *testing.T) {
 	} {
 		s := &Schema{
 			Type: "object",
-			Properties: map[string]*Schema{
+			Properties: omap.FromMap(map[string]*Schema{
 				"A": {Type: "integer"},
 				"B": {Type: "integer"},
 				"C": {Type: "integer"},
 				"D": {Type: "integer"},
 				"E": {Type: "integer"},
-			},
+			}),
 		}
-		s.PropertyOrder = tt.order
+		s.Properties.SetOrder(tt.order)
 		gotBytes, err := json.Marshal(s)
 		if err != nil {
 			if !tt.wantErr {
@@ -389,7 +390,7 @@ func TestCloneSchemas(t *testing.T) {
 	s1 := Schema{
 		Contains:    ss1,
 		PrefixItems: []*Schema{ss2, ss3},
-		Properties:  map[string]*Schema{"a": ss5},
+		Properties:  omap.FromMap(map[string]*Schema{"a": ss5}),
 	}
 	s2 := s1.CloneSchemas()
 
@@ -405,7 +406,7 @@ func TestCloneSchemas(t *testing.T) {
 		}
 	}
 	// s1's original schemas should be intact.
-	if s1.Contains != ss1 || s1.PrefixItems[0] != ss2 || s1.PrefixItems[1] != ss3 || ss5.Contains != ss4 || s1.Properties["a"] != ss5 {
+	if s1.Contains != ss1 || s1.PrefixItems[0] != ss2 || s1.PrefixItems[1] != ss3 || ss5.Contains != ss4 || s1.Properties.Value("a") != ss5 {
 		t.Errorf("s1 modified")
 	}
 }

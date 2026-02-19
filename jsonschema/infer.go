@@ -17,6 +17,8 @@ import (
 	"regexp"
 	"slices"
 	"time"
+
+	"github.com/justenstall/omap/omap"
 )
 
 const debugEnv = "JSONSCHEMAGODEBUG"
@@ -253,7 +255,7 @@ func forType(t reflect.Type, seen map[reflect.Type]bool, ignore bool, schemas ma
 		var skipPath []int
 		for _, field := range reflect.VisibleFields(t) {
 			if s.Properties == nil {
-				s.Properties = make(map[string]*Schema)
+				s.Properties = omap.New[string, *Schema]()
 			}
 			if field.Anonymous {
 				override := schemas[field.Type]
@@ -276,15 +278,9 @@ func forType(t reflect.Type, seen map[reflect.Type]bool, ignore bool, schemas ma
 					}
 
 					skipPath = field.Index
-					keys := make([]string, 0, len(override.Properties))
-					for k := range override.Properties {
-						keys = append(keys, k)
-					}
-					slices.Sort(keys)
-					for _, name := range keys {
-						if _, ok := s.Properties[name]; !ok {
-							s.Properties[name] = override.Properties[name].CloneSchemas()
-							s.PropertyOrder = append(s.PropertyOrder, name)
+					for name, overrideSchema := range override.Properties.All() {
+						if !s.Properties.Has(name) {
+							s.Properties.Set(name, overrideSchema.CloneSchemas())
 						}
 					}
 				}
@@ -336,36 +332,12 @@ func forType(t reflect.Type, seen map[reflect.Type]bool, ignore bool, schemas ma
 				}
 				fs.Description = tag
 			}
-			s.Properties[info.name] = fs
-
-			s.PropertyOrder = append(s.PropertyOrder, info.name)
+			s.Properties.Set(info.name, fs)
 
 			if !info.settings["omitempty"] && !info.settings["omitzero"] {
 				s.Required = append(s.Required, info.name)
 			}
 		}
-
-		// Remove PropertyOrder duplicates, keeping the last occurrence
-		if len(s.PropertyOrder) > 1 {
-			seen := make(map[string]bool)
-			// Create a slice to hold the cleaned order (capacity = current length)
-			cleaned := make([]string, 0, len(s.PropertyOrder))
-
-			// Iterate backwards
-			for i := len(s.PropertyOrder) - 1; i >= 0; i-- {
-				name := s.PropertyOrder[i]
-				if !seen[name] {
-					cleaned = append(cleaned, name)
-					seen[name] = true
-				}
-			}
-
-			// Since we collected them backwards, we need to reverse the result
-			// to restore the correct order.
-			slices.Reverse(cleaned)
-			s.PropertyOrder = cleaned
-		}
-
 	default:
 		if ignore {
 			// Ignore.

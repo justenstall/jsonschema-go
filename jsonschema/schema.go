@@ -15,6 +15,8 @@ import (
 	"math"
 	"reflect"
 	"slices"
+
+	"github.com/justenstall/omap/omap"
 )
 
 // A Schema is a JSON schema object.
@@ -97,15 +99,15 @@ type Schema struct {
 	UnevaluatedItems *Schema   `json:"unevaluatedItems,omitempty"`
 
 	// objects
-	MinProperties         *int                `json:"minProperties,omitempty"`
-	MaxProperties         *int                `json:"maxProperties,omitempty"`
-	Required              []string            `json:"required,omitempty"`
-	DependentRequired     map[string][]string `json:"dependentRequired,omitempty"`
-	Properties            map[string]*Schema  `json:"properties,omitempty"`
-	PatternProperties     map[string]*Schema  `json:"patternProperties,omitempty"`
-	AdditionalProperties  *Schema             `json:"additionalProperties,omitempty"`
-	PropertyNames         *Schema             `json:"propertyNames,omitempty"`
-	UnevaluatedProperties *Schema             `json:"unevaluatedProperties,omitempty"`
+	MinProperties         *int                       `json:"minProperties,omitempty"`
+	MaxProperties         *int                       `json:"maxProperties,omitempty"`
+	Required              []string                   `json:"required,omitempty"`
+	DependentRequired     map[string][]string        `json:"dependentRequired,omitempty"`
+	Properties            *omap.Map[string, *Schema] `json:"properties,omitempty"`
+	PatternProperties     map[string]*Schema         `json:"patternProperties,omitempty"`
+	AdditionalProperties  *Schema                    `json:"additionalProperties,omitempty"`
+	PropertyNames         *Schema                    `json:"propertyNames,omitempty"`
+	UnevaluatedProperties *Schema                    `json:"unevaluatedProperties,omitempty"`
 
 	// logic
 	AllOf []*Schema `json:"allOf,omitempty"`
@@ -140,7 +142,7 @@ type Schema struct {
 	// The rendered JSON first lists any properties that appear in the PropertyOrder slice in the order
 	// they appear, followed by all other properties that do not appear in the PropertyOrder slice in an
 	// undefined but deterministic order.
-	PropertyOrder []string `json:"-"`
+	// PropertyOrder []string `json:"-"`
 }
 
 // falseSchema returns a new Schema tree that fails to validate any value.
@@ -213,14 +215,6 @@ func (s *Schema) basicChecks() error {
 	if s.Items != nil && s.ItemsArray != nil {
 		return errors.New("both Items and ItemsArray are set; at most one should be")
 	}
-	propertyOrderSeen := make(map[string]bool)
-	for _, val := range s.PropertyOrder {
-		if _, ok := propertyOrderSeen[val]; ok {
-			// Duplicate found
-			return fmt.Errorf("property order slice cannot contain duplicate entries, found duplicate %q", val)
-		}
-		propertyOrderSeen[val] = true
-	}
 
 	for key := range s.DependencySchemas {
 		// Check if the key exists in the dependency strings map
@@ -287,10 +281,7 @@ func (s Schema) MarshalJSON() ([]byte, error) {
 	}
 	// Marshal properties, even if the empty map (but not nil).
 	if s.Properties != nil {
-		ms.Properties = orderedProperties{
-			props: s.Properties,
-			order: s.PropertyOrder,
-		}
+		ms.Properties = s.Properties
 	}
 
 	bs, err := marshalStructWithMap(&ms, "Extra")

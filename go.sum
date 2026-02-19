@@ -1,2 +1,4 @@
 github.com/google/go-cmp v0.7.0 h1:wk8382ETsv4JYUZwIsn6YpYiWiBsYLSJiTsyBybVuN8=
 github.com/google/go-cmp v0.7.0/go.mod h1:pXiqmnSA92OHEEa9HXL2W4E7lf9JzCmGVUdgjX3N/iU=
+github.com/justenstall/omap v0.0.0-20260219225632-5068438ad567 h1:NBWhGRq7UyFcJtDpJH5BhdfO8dTgp4KEt3DEqbPXxzA=
+github.com/justenstall/omap v0.0.0-20260219225632-5068438ad567/go.mod h1:nkQzdZjfRiNwIIdhTYcnCVn/BYrQ1QwZ6szT2U0CGgU=

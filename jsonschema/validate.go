@@ -457,7 +457,7 @@ func (st *state) validate(instance reflect.Value, schema *Schema, callerAnns *an
 		// If we used anns here, then we'd be including properties evaluated in subschemas
 		// from allOf, etc., which additionalProperties shouldn't observe.
 		evalProps := map[string]bool{}
-		for prop, subschema := range schema.Properties {
+		for prop, subschema := range schema.Properties.All() {
 			val := property(instance, prop)
 			if !val.IsValid() {
 				// It's OK if the instance doesn't have the property.
@@ -718,7 +718,7 @@ func (st *state) applyDefaults(instancep reflect.Value, schema *Schema) (err err
 				return fmt.Errorf("map key type %s is not a string", kt)
 			}
 		}
-		for prop, subschema := range schema.Properties {
+		for prop, subschema := range schema.Properties.All() {
 			// Ignore defaults on required properties. (A required property shouldn't have a default.)
 			if schemaInfo.isRequired[prop] {
 				continue
@@ -792,7 +792,7 @@ func schemaHasDefaultsInProperties(s *Schema) bool {
 		return true
 	}
 	if s.Properties != nil {
-		for _, ss := range s.Properties {
+		for _, ss := range s.Properties.All() {
 			if schemaHasDefaultsInProperties(ss) {
 				return true
 			}

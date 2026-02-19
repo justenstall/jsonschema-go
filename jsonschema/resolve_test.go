@@ -12,6 +12,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/justenstall/omap/omap"
 )
 
 func TestSchemaStructure(t *testing.T) {
@@ -35,7 +37,7 @@ func TestSchemaStructure(t *testing.T) {
 	sliceNil := &Schema{PrefixItems: []*Schema{nil}}
 	check(sliceNil, "is nil")
 
-	sliceMap := &Schema{Properties: map[string]*Schema{"a": nil}}
+	sliceMap := &Schema{Properties: omap.FromMap(map[string]*Schema{"a": nil})}
 	check(sliceMap, "is nil")
 }
 
@@ -105,10 +107,12 @@ func TestPaths(t *testing.T) {
 	root := &Schema{
 		Type:        "string",
 		PrefixItems: []*Schema{{Type: "int"}, {Items: &Schema{Type: "null"}}},
-		Contains: &Schema{Properties: map[string]*Schema{
-			"~1": {Type: "boolean"},
-			"p":  {},
-		}},
+		Contains: &Schema{
+			Properties: omap.FromMap(map[string]*Schema{
+				"~1": {Type: "boolean"},
+				"p":  {},
+			}),
+		},
 	}
 
 	type item struct {
@@ -118,8 +122,8 @@ func TestPaths(t *testing.T) {
 	want := []item{
 		{root, "root"},
 		{root.Contains, "/contains"},
-		{root.Contains.Properties["p"], "/contains/properties/p"},
-		{root.Contains.Properties["~1"], "/contains/properties/~01"},
+		{root.Contains.Properties.Value("p"), "/contains/properties/p"},
+		{root.Contains.Properties.Value("~1"), "/contains/properties/~01"},
 		{root.PrefixItems[0], "/prefixItems/0"},
 		{root.PrefixItems[1], "/prefixItems/1"},
 		{root.PrefixItems[1].Items, "/prefixItems/1/items"},
